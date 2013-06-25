@@ -1,6 +1,6 @@
 # Releasenoter
 
-TODO: Write a gem description
+Generate release notes in markdown from git log.
 
 ## Installation
 
