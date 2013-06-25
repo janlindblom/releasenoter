@@ -1,6 +1,8 @@
 require 'trollop'
 require 'releasenoter/version'
 require "git"
+require 'jiraSOAP'
+require 'github_api'
 
 module Releasenoter
   class Cli
@@ -14,6 +16,10 @@ module Releasenoter
         opt :jira, "Highlight JIRA issue commits", :default => true
         opt :merges, "Include merge commits", :default => false
         opt :untagged, "Skip commits without issue references", :default => true
+        opt :github_repo, "URL to the Github repository", :type => :string
+        opt :jira_inst, "URL to the JIRA instance", :type => :string
+        opt :display_email, "Display author email", :default => false
+        opt :long_sha, "Show full hash", :default => true
       end
     end
     
@@ -52,11 +58,11 @@ module Releasenoter
         author_email = commit.author.email
         commit_message = commit.message
         if commit_message =~ jira_pat
-          puts commit_message.sub(jira_pat, 'JIRA: \1')
+          commit_message = commit_message.sub(jira_pat, '[\1]')
         end
         
         if commit_message =~ github_pat
-          puts commit_message.sub(github_pat, 'GH: \1')
+          commit_message = commit_message.sub(github_pat, '[#\1]')
         end
         
         sha = commit.sha
