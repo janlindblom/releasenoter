@@ -3,10 +3,6 @@ require 'releasenoter/version'
 require "git"
 
 module Releasenoter
-  patterns = {
-    jira: /(\w{2,4}-\d+)/,
-    github: /\#(\d+)/
-  }
   class Cli
     def self.start_cli
       @opts = Trollop::options do
@@ -28,6 +24,8 @@ module Releasenoter
 
   class FromGit
     def self.get_log
+      jira_pat = /(\w{2,4}-\d+)/
+      github_pat = /\#(\d+)/
       cli_opts = Releasenoter::Cli.get_opts
       if cli_opts[:github]
         puts "Will highlight Github issue commits."
@@ -53,6 +51,14 @@ module Releasenoter
         author_name = commit.author.name
         author_email = commit.author.email
         commit_message = commit.message
+        if commit_message =~ jira_pat
+          puts commit_message.sub(jira_pat, 'JIRA: \1')
+        end
+        
+        if commit_message =~ github_pat
+          puts commit_message.sub(github_pat, 'GH: \1')
+        end
+        
         sha = commit.sha
         if commit_message !~ /Merge/
           puts "(" + sha + ") " + author_name + " <" + author_email + ">: " + commit_message
