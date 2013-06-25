@@ -17,6 +17,7 @@ module Releasenoter
         opt :github, "Highlight Github issue commits", :default => true
         opt :jira, "Highlight JIRA issue commits", :default => true
         opt :merges, "Include merge commits", :default => false
+        opt :untagged, "Skip commits without issue references", :default => true
       end
     end
     
@@ -37,12 +38,29 @@ module Releasenoter
       if cli_opts[:merges]
         puts "Will include merge commits."
       end
+      
       @git = Git.open('.')
-      @git.log.each do |commit|
+      
+      if cli_opts[:since] && !cli_opts[:to]
+        gitlog = @git.log.since(cli_opts[:since])
+      elsif cli_opts[:since] && cli_opts[:to]
+        gitlog = @git.log.between(cli_opts[:since], cli_opts[:to])
+      else
+        gitlog = @git.log
+      end
+      
+      gitlog.each do |commit|
         author_name = commit.author.name
         author_email = commit.author.email
         commit_message = commit.message
-        puts author_name + " <" + author_email + ">: " + commit_message
+        sha = commit.sha
+        if commit_message !~ /Merge/
+          puts "(" + sha + ") " + author_name + " <" + author_email + ">: " + commit_message
+        else
+          if cli_opts[:merges]
+            puts "(" + sha + ") " + author_name + " <" + author_email + ">: " + commit_message
+          end
+        end
       end
     end
   end
