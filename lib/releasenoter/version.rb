@@ -1,0 +1,4 @@
+module Releasenoter
+  # releasenoter version
+  VERSION = "0.1.0"
+end

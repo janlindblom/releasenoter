@@ -1,0 +1,32 @@
+= releasenoter
+
+* {Homepage}[https://github.com/janlindblom/releasenoter#readme]
+* {Issues}[https://github.com/janlindblom/releasenoter/issues]
+* {Documentation}[http://rubydoc.info/gems/releasenoter/frames]
+* {Email}[mailto:jan.lindblom at mittmedia.se]
+
+== Description
+
+TODO: Description
+
+== Features
+
+== Examples
+
+  require 'releasenoter'
+
+== Requirements
+
+== Install
+
+  $ gem install releasenoter
+
+== Synopsis
+
+  $ releasenoter
+
+== Copyright
+
+Copyright (c) 2013 Jan Lindblom
+
+See LICENSE.txt for details.
