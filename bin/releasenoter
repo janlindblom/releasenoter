@@ -10,5 +10,9 @@ if File.directory?(File.join(root,'.git'))
       warn "Run `gem install bundler` to install Bundler"
       exit -1
     end
+    
+    require 'releasenoter'
+    Releasenoter::Cli.start_cli
+    Releasenoter::FromGit.get_log
   end
 end
