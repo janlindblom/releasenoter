@@ -1,4 +1,4 @@
-# -*- encoding: utf-8 -*-
+# coding: utf-8
 
 require File.expand_path('../lib/releasenoter/version', __FILE__)
 
