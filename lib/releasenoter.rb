@@ -3,9 +3,6 @@ require 'releasenoter/version'
 require "git"
 require "formatador"
 
-#require 'jiraSOAP'
-#require 'github_api'
-
 module Releasenoter
   class Cli
     @opts = []
@@ -21,7 +18,8 @@ module Releasenoter
         opt :author_email, "Show author email", :default => true
         opt :no_github_highlight, "Don't highlight Github issue commits", :default => false
         opt :github_user, "Github username", :type => :string
-        opt :github_repo, "URL to the Github repository", :type => :string
+        opt :github_repo, "URL to Github", :type => :string
+        opt :github_link_commit, "Link the hash to the commit on Github", :default => false
         opt :jira_inst, "URL to the JIRA instance", :type => :string
         opt :no_jira_highlight, "Don't highlight JIRA issue commits", :default => false
       end
@@ -39,65 +37,61 @@ module Releasenoter
       github_pat = /\#(\d+)/
       cli_opts = Releasenoter::Cli.get_opts
 
-      if !cli_opts[:no_github_highlight]
-        if cli_opts[:github_repo]
-          f.display_line "Will highlight Github issue commits (like so: ([green]#1[/])[" + cli_opts[:github_repo] + "])."
-        else
-          f.display_line "Will highlight Github issue commits (like so: [[green]#1[/]])."
-        end
-      end
-      if !cli_opts[:no_jira_highlight]
-        if cli_opts[:jira_inst]
-          f.display_line "Will highlight JIRA issue commits (like so: ([blue]ABCD-1[/]])[" + cli_opts[:jira_inst] + "]."
-        else
-          f.display_line "Will highlight JIRA issue commits (like so: [[blue]ABCD-1[/]])."
-        end
-      end
-      if cli_opts[:merges]
-        f.display_line "Will include merge commits."
-      end
-
       @git = Git.open('.')
 
       if cli_opts[:since]
         if !cli_opts[:until]
           gitlog = @git.log.since(cli_opts[:since].to_s)
+          f.display_line "# Release Notes since " + cli_opts[:since]
         elsif cli_opts[:until]
           gitlog = @git.log.between(cli_opts[:since].to_s, cli_opts[:until].to_s)
+          f.display_line "# Release Notes between " + cli_opts[:since] + " and " + cli_opts[:until]
         end
       elsif cli_opts[:until]
         if !cli_opts[:since]
           gitlog = @git.log.until(cli_opts[:until].to_s)
+          f.display_line "# Release Notes until " + cli_opts[:until]
         end
       else
       gitlog = @git.log
+      f.display_line "# Release Notes"
       end
 
       gitlog.each do |commit|
         author_name = commit.author.name
         author_email = " <" + commit.author.email + ">"
+        commit_message = commit.message
+        commit_date = commit.date
         if cli_opts[:author_email]
           author_email = ''
         end
-        commit_message = commit.message
-        commit_date = commit.date
         if commit_message =~ jira_pat
-          commit_message = commit_message.sub(jira_pat, '[[blue]\1[/]]')
+          if cli_opts[:jira_inst]
+            commit_message = commit_message.sub(jira_pat, '[[blue]\1[/]]('+cli_opts[:jira_inst]+'/browse/\1)')
+          else
+            commit_message = commit_message.sub(jira_pat, '[[blue]\1[/]]')
+          end
         end
 
         if commit_message =~ github_pat
-          commit_message = commit_message.sub(github_pat, '[[green]#\1[/]]')
+          if cli_opts[:github_repo]
+            commit_message = commit_message.sub(github_pat, '[][green]#\1[/]]('+cli_opts[:github_repo]+'/issues/\1)')
+          else
+            commit_message = commit_message.sub(github_pat, '[[green]#\1[/]]')
+          end
         end
 
         sha = commit.sha
-        if !cli_opts[:long]
-        sha = sha[0..6]
-        end
+        longsha = sha
+        sha = sha[0..6] if !cli_opts[:long]
+
+        sha = "[" + sha + "](" + cli_opts[:github_repo] + "/commit/" + longsha + ")" if cli_opts[:github_link_commit] && cli_opts[:github_repo]
+
         if commit_message !~ /Merge/
-          f.display_line "* [" + commit_date.to_s + "] (" + sha + ") " + author_name + author_email + ": " + commit_message
+          f.display_line " * [" + commit_date.to_s + "] (" + sha + ") " + author_name + author_email + ": " + commit_message
         else
           if cli_opts[:merges]
-            f.display_line "* [" + commit_date.to_s + "] (" + sha + ") " + author_name + " <" + author_email + ">: " + commit_message
+            f.display_line " * [" + commit_date.to_s + "] (" + sha + ") " + author_name + author_email + ": " + commit_message
           end
         end
       end
