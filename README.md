@@ -1,4 +1,4 @@
-# Releasenoter
+# Releasenoter 0.0.1
 
 Generate release notes in markdown from git log.
 
@@ -18,7 +18,9 @@ Or install it yourself as:
 
 ## Usage
 
-TODO: Write usage instructions here
+See:
+
+    $ releasenoter --help
 
 ## Contributing
 

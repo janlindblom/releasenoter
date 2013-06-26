@@ -5,8 +5,8 @@ require File.expand_path('../lib/releasenoter/version', __FILE__)
 Gem::Specification.new do |gem|
   gem.name          = "releasenoter"
   gem.version       = Releasenoter::VERSION
-  gem.summary       = %q{TODO: Summary}
-  gem.description   = %q{TODO: Description}
+  gem.summary       = "Releasenoter generates releasenotes from Git logs."
+  gem.description   = "Releasenoter generates releasenotes from Git logs."
   gem.license       = "MIT"
   gem.authors       = ["Jan Lindblom"]
   gem.email         = "jan.lindblom@mittmedia.se"
@@ -22,4 +22,7 @@ Gem::Specification.new do |gem|
   gem.add_development_dependency 'rdoc', '~> 3.0'
   gem.add_development_dependency 'rspec', '~> 2.4'
   gem.add_development_dependency 'rubygems-tasks', '~> 0.2'
+  gem.add_dependency "git"
+  gem.add_dependency "trollop"
+  gem.add_dependency "formatador"
 end
