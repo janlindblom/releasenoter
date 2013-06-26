@@ -23,7 +23,7 @@ TODO: Description
 
 == Synopsis
 
-  $ releasenoter
+  $ releasenoter --help
 
 == Copyright
 
