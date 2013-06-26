@@ -24,6 +24,7 @@ Gem::Specification.new do |gem|
   gem.add_development_dependency 'rubygems-tasks', '~> 0.2'
   gem.add_dependency "git"
   gem.add_dependency "trollop"
-  gem.add_dependency "github_api"
-  gem.add_dependency "jiraSOAP"
+  #gem.add_dependency "github_api"
+  #gem.add_dependency "jiraSOAP"
+  gem.add_dependency "formatador"
 end
