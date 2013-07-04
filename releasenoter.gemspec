@@ -25,4 +25,5 @@ Gem::Specification.new do |gem|
   gem.add_dependency "git"
   gem.add_dependency "trollop"
   gem.add_dependency "formatador"
+  gem.add_dependency "bundler"
 end
