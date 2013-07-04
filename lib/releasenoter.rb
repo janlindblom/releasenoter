@@ -11,6 +11,8 @@ module Releasenoter
         version "Releasenoter " + Releasenoter::VERSION
 
         opt :long, "Use long SHA hashes", :default => false
+        opt :date, "Show date", :default => true
+        opt :author, "Show author", :default => true
         opt :since, "Starting point (committish, date, tag...)", :type => :string
         opt :until, "Ending point (committish, date, tag...)", :type => :string
         opt :merges, "Include merge commits", :default => false
@@ -19,7 +21,7 @@ module Releasenoter
         opt :no_github_highlight, "Don't highlight Github issue commits", :default => false
         opt :github_user, "Github username", :type => :string
         opt :github_repo, "URL to Github", :type => :string
-        opt :github_link_commit, "Link the hash to the commit on Github", :default => false
+        opt :github_link, "Link the hash to the commit on Github", :default => true
         opt :jira_inst, "URL to the JIRA instance", :type => :string
         opt :no_jira_highlight, "Don't highlight JIRA issue commits", :default => false
       end
@@ -35,9 +37,16 @@ module Releasenoter
       f = Formatador.new
       jira_pat = /(\w{2,4}-\d+)/
       github_pat = /\#(\d+)/
+      gh_repo_pat = /git@github\.com\:(\w.+\w)\.git/
       cli_opts = Releasenoter::Cli.get_opts
 
       @git = Git.open('.')
+      
+      remote_origin = @git.config["remote.origin.url"]
+      
+      if remote_origin =~ gh_repo_pat
+        cli_opts[:github_repo] = 'https://github.com/' + remote_origin.sub(gh_repo_pat, '\1')
+      end
 
       if cli_opts[:since]
         if !cli_opts[:until]
@@ -61,10 +70,21 @@ module Releasenoter
         author_name = commit.author.name
         author_email = " <" + commit.author.email + ">"
         commit_message = commit.message
-        commit_date = commit.date
+        commit_date = "[" + DateTime.parse(commit.date.to_s).strftime("%c") + "] "
+        if !cli_opts[:date]
+          commit_date = ''
+        end
+        
         if cli_opts[:author_email]
           author_email = ''
         end
+        
+        if cli_opts[:author]
+          author = ' ' + author_name + author_email
+        else
+          author = ''
+        end
+        
         if commit_message =~ jira_pat
           if cli_opts[:jira_inst]
             commit_message = commit_message.sub(jira_pat, '[[blue]\1[/]]('+cli_opts[:jira_inst]+'/browse/\1)')
@@ -75,7 +95,7 @@ module Releasenoter
 
         if commit_message =~ github_pat
           if cli_opts[:github_repo]
-            commit_message = commit_message.sub(github_pat, '[][green]#\1[/]]('+cli_opts[:github_repo]+'/issues/\1)')
+            commit_message = commit_message.sub(github_pat, '[[green]#\1[/]]('+cli_opts[:github_repo]+'/issues/\1)')
           else
             commit_message = commit_message.sub(github_pat, '[[green]#\1[/]]')
           end
@@ -88,10 +108,10 @@ module Releasenoter
         sha = "[" + sha + "](" + cli_opts[:github_repo] + "/commit/" + longsha + ")" if cli_opts[:github_link_commit] && cli_opts[:github_repo]
 
         if commit_message !~ /Merge/
-          f.display_line " * [" + commit_date.to_s + "] (" + sha + ") " + author_name + author_email + ": " + commit_message
+          f.display_line " * " + commit_date.to_s + "(" + sha + ")" + author + ": " + commit_message
         else
           if cli_opts[:merges]
-            f.display_line " * [" + commit_date.to_s + "] (" + sha + ") " + author_name + author_email + ": " + commit_message
+            f.display_line " * " + commit_date.to_s + "(" + sha + ")" + author + ": " + commit_message
           end
         end
       end
