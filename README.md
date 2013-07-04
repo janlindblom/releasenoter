@@ -1,4 +1,4 @@
-# Releasenoter 0.0.1
+# Releasenoter 0.0.2
 
 Generate release notes in markdown from git log.
 
