@@ -1,194 +1,168 @@
-require 'trollop'
 require 'releasenoter/version'
 require "git"
-require "formatador"
 require 'rake'
 require 'rake/tasklib'
 require 'yaml'
 
 module Releasenoter
-  class RakeTask < ::Rake::TaskLib
-    include ::Rake::DSL if defined?(::Rake::DSL)
+  class Tasks < ::Rake::TaskLib
+    def initialize(namespace = :releasenote)
     
-    attr_accessor :name
-    attr_accessor :fail_on_error
-    attr_accessor :verbose
-    
-    def initialize(*args, &task_block)
-      setup_ivars(args)
-
-      desc "Generate Release Notes" unless ::Rake.application.last_comment
-
-      task :releasenote, :until, :since, :author, :author_email, :github_repo do |t, args|
-        config = parse_config
-        github_repo = config["github"] || get_remote
-        author_email = config["author_email"] || false
-        args.with_defaults(
-          :until => 'Current',
-          :since => nil,
-          :author => true,
-          :github_repo => github_repo,
-          :github_link_commit => true,
-          :jira_inst => config["jira"])
-        puts "Args were: #{args}"
-        get_tags
-        #Releasenoter::Cli.start_cli
-        get_log args
-#        RakeFileUtils.send(:verbose, verbose) do
-#          task_block.call(*[self, task_args].slice(0, task_block.arity)) if task_block
-#          run_task verbose
-#        end
+      namespace(namespace) do
+        desc "Generate Release Notes"
+        task :generate, :until, :since do |t, args|
+          config = Releasenoter::Config.parse
+          
+          @jira_inst = config["jira"]
+          @github_repo = config["github_repo"] || get_remote
+          @github_link_commit = config["link_commit"] || false
+          @author_email = config["author_email"]
+          @show_author = config["show_author"]
+          @long_hash = config["long_hash"]
+          @until = args[:until] || nil
+          @since = args[:since] || nil
+          @format = config["format"]
+          
+          define_format
+          
+          get_tags
+          get_log
+        end
       end
-    end
-    
-    def setup_ivars(args)
-      @root = Dir.pwd
-      @name = File.basename(@root)
-      @name = args.shift || :releasenote
-      @verbose, @fail_on_error = true, true
-    end
-    
-    def run_task(verbose)
-      command = 'pwd'
-
-      begin
-        get_tags
-        Releasenoter::Cli.start_cli
-        Releasenoter::FromGit.get_log
-        puts command if verbose
-        success = system(command)
-      rescue
-        puts failure_message if failure_message
-      end
-      abort("#{command} failed") if fail_on_error unless success
     end
     
     private
     
-    def parse_config
-      thing = YAML.load_file('config/releasenote.yml')
-      puts thing.inspect
-      return thing
+    def define_format
+      if @format == "markdown"
+        @h3 = "###"
+        @h4 = "####"
+        @bull = " *"
+        @link = {:text_b => '[', :text_a => ']', :link_b => '(', :link_a => ')'}
+      elsif @format == "textile"
+        @h3 = "h3."
+        @h4 = "h4."
+        @bull = " *"
+        @link = {:text_b => '"', :text_a => '":', :link_b => '', :link_a => ''}
+      end
     end
     
     def get_tags
-      @git = Git.open(@root)
+      @git = Git.open('.')
     end
     
     def get_remote
       @git = Git.open('.')
       gh_repo_pat = /git@github\.com\:(\w.+\w)\.git/
-      remote_origin = @git.config["remote.origin.url"]
-      github_repo = nil
+      remote_origin = @git.remote('origin').url
+      remote = false
       
       if remote_origin =~ gh_repo_pat
-        github_repo = 'https://github.com/' + remote_origin.sub(gh_repo_pat, '\1')
+        remote = 'https://github.com/' + remote_origin.sub(gh_repo_pat, '\1')
       end
-      return github_repo
+      return remote
     end
     
-    def get_log(args)
-      f = Formatador.new
-      jira_pat = /(\w{2,4}-\d+)/
-      github_pat = /\#(\d+)/
-      gh_repo_pat = /git@github\.com\:(\w.+\w)\.git/
-      #cli_opts = Releasenoter::Cli.get_opts
-      cli_opts = args
-
-      if cli_opts[:until]
-        gitlog = @git.log.until(cli_opts[:until].to_s)
-        f.display_line "#### [" + cli_opts[:until] + "]"
+    def highlight_commit_message(commit_message)
+      
+      
+      if commit_message =~ @jira_pat
+        @issues.push(commit_message.match(@jira_pat)[0])
+        
+        if @jira_inst
+          commit_message = commit_message.sub(@jira_pat, '['+@link[:text_b]+'\1'+@link[:text_a]+@link[:link_b]+@jira_inst+'/browse/\1'+@link[:link_b]+']')
+        else
+          commit_message = commit_message.sub(@jira_pat, '[\1]')
+        end
+      end
+      
+      if commit_message =~ @github_pat
+        if @github_repo
+          commit_message = commit_message.sub(@github_pat, '['+@link[:text_b]+'#\1'+@link[:text_a]+@link[:link_b]+@github_repo+'/issues/\1'+@link[:link_a]+']')
+        else
+          commit_message = commit_message.sub(@github_pat, '[#\1]')
+        end
+      end
+      
+      return commit_message
+    end
+    
+    def get_log
+      @jira_pat = /(\w{2,4}-\d+)/
+      @github_pat = /\#(\d+)/
+      if @until
+        if @since
+          gitlog = @git.log.between(@since.to_s, @until.to_s)
+        else
+          gitlog = @git.log.until(@until.to_s)
+        end
+        puts @h3 + " Version " + @until
       else
       gitlog = @git.log
-      f.display_line "#### Release Notes"
+      puts @h3 + " Release Notes"
       end
+      
+      @issues = []
+      @entries = []
 
       gitlog.each do |commit|
         author_name = commit.author.name
         commit_message = commit.message
         commit_date = "[" + DateTime.parse(commit.date.to_s).strftime("%c") + "] "
-        if !cli_opts[:date]
+        if !@date
           commit_date = ''
         end
         
         author_email = ''
         
-        if cli_opts[:author]
-          author = ' ' + author_name + author_email
+        if @show_author
+          author = author_name + author_email
+          author = " __(" + author + ")__"
         else
           author = ' '
         end
         
-        if commit_message =~ jira_pat
-          if cli_opts[:jira_inst]
-            commit_message = commit_message.sub(jira_pat, '[[blue]\1[/]]('+cli_opts[:jira_inst]+'/browse/\1)')
-          else
-            commit_message = commit_message.sub(jira_pat, '[[blue]\1[/]]')
-          end
-        end
-
-        if commit_message =~ github_pat
-          if cli_opts[:github_repo]
-            commit_message = commit_message.sub(github_pat, '[[green]#\1[/]]('+cli_opts[:github_repo]+'/issues/\1)')
-          else
-            commit_message = commit_message.sub(github_pat, '[[green]#\1[/]]')
-          end
-        end
+        commit_message = highlight_commit_message(commit_message)
 
         sha = commit.sha
         longsha = sha
-        sha = sha[0..6] if !cli_opts[:long]
+        sha = sha[0..6] if !@long_hash
 
-        if cli_opts[:github_link_commit] && cli_opts[:github_repo]
-          sha = "[" + sha + "](" + cli_opts[:github_repo] + "/commit/" + sha + ")"
+        if @github_link_commit && @github_repo
+          sha = "[" + @link[:text_b] + sha + @link[:text_a] + @link[:link_b] + @github_repo + "/commit/" + sha + @link[:link_a] + "]"
         else
           sha = "[" + sha + "]"
         end
         
-        author = " __(" + author + ")__"
-
+        
+        tagged = false
         if commit_message !~ /Merge/
-          f.display_line " * " + sha + " " + commit_message + author
-        else
-          if cli_opts[:merges]
-            f.display_line " * " + sha + " " + commit_message + author
+          if commit_message.match(@jira_pat)
+            tagged = commit_message.match(@jira_pat)[0]
           end
+          @entries.push({:string => " * " + sha + " " + commit_message + author, :tagged => tagged})
         end
+        
+      end
+      
+      @issues.each do |i|
+        puts "\n" + @h4 + " " + i.sub(@jira_pat, @link[:text_b]+'\1'+@link[:text_a]+@link[:link_b]+@jira_inst+'/browse/\1'+@link[:link_a])
+        @entries.each do |e|
+          puts e[:string] if e[:tagged] == i
+        end
+      end
+      puts "\n" + @h4 + " Other Commits"
+      @entries.each do |e|
+        puts e[:string] if !e[:tagged]
       end
     end
     
   end
   
-  class Cli
-    @opts = []
-    def self.start_cli
-      @opts = Trollop::options do
-        version "Releasenoter " + Releasenoter::VERSION
-
-        opt :long, "Use long SHA hashes", :default => false
-        opt :date, "Show date", :default => true
-        opt :author, "Show author", :default => true
-        opt :since, "Starting point (committish, date, tag...)", :type => :string
-        opt :until, "Ending point (committish, date, tag...)", :type => :string
-        opt :merges, "Include merge commits", :default => false
-        opt :tagged, "Only include commits without issue references", :default => false
-        opt :author_email, "Show author email", :default => true
-        opt :no_github_highlight, "Don't highlight Github issue commits", :default => false
-        opt :github_user, "Github username", :type => :string
-        opt :github_repo, "URL to Github", :type => :string
-        opt :github_link, "Link the hash to the commit on Github", :default => true
-        opt :jira_inst, "URL to the JIRA instance", :type => :string
-        opt :no_jira_highlight, "Don't highlight JIRA issue commits", :default => false
-      end
+  class Config
+    def self.parse
+      thing = YAML.load_file(File.expand_path('config/releasenote.yml'))
+      return thing
     end
-
-    def self.get_opts
-      return @opts
-    end
-    
-  end
-
-  class FromGit
-    
   end
 end

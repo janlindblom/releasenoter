@@ -33,7 +33,7 @@ require 'rspec/core/rake_task'
 RSpec::Core::RakeTask.new
 
 require 'releasenoter'
-Releasenoter::RakeTask.new
+Releasenoter::Tasks.new
 
 task :test    => :spec
 task :default => :spec
