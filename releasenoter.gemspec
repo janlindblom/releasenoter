@@ -5,6 +5,7 @@ require File.expand_path('../lib/releasenoter/version', __FILE__)
 Gem::Specification.new do |gem|
   gem.name          = "releasenoter"
   gem.version       = Releasenoter::VERSION
+  gem.platform      = Gem::Platform::RUBY
   gem.summary       = "Releasenoter generates releasenotes from Git logs."
   gem.description   = "Releasenoter generates releasenotes from Git logs."
   gem.license       = "MIT"
@@ -17,12 +18,14 @@ Gem::Specification.new do |gem|
   gem.test_files    = gem.files.grep(%r{^(test|spec|features)/})
   gem.require_paths = ['lib']
 
-  gem.add_development_dependency 'bundler', '~> 1.0'
-  gem.add_development_dependency 'rake', '~> 0.8'
-  gem.add_development_dependency 'rdoc', '~> 3.0'
-  gem.add_development_dependency 'rspec', '~> 2.4'
-  gem.add_development_dependency 'rubygems-tasks', '~> 0.2'
+  gem.add_development_dependency 'bundler'
+  gem.add_development_dependency 'rake'
+  gem.add_development_dependency 'rdoc'
+  gem.add_development_dependency 'rspec'
+  gem.add_development_dependency 'rubygems-tasks'
   gem.add_dependency "git"
   gem.add_dependency "trollop"
   gem.add_dependency "formatador"
+  gem.add_dependency "bundler"
+  gem.add_dependency "rake"
 end

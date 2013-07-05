@@ -1,4 +1,4 @@
-# Releasenoter 0.0.2
+# Releasenoter 0.0.3
 
 Generate release notes in markdown from git log.
 
@@ -18,9 +18,7 @@ Or install it yourself as:
 
 ## Usage
 
-See:
-
-    $ releasenoter --help
+    $ rake releasenote
 
 ## Contributing
 
